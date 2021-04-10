@@ -19,6 +19,7 @@ var pressedKeys = {
 const MouseSensitivity = 0.25;
 
 var colliders = [];
+var gamePaused = true;
 
 var LockCameraMouseRotation = false;
 
@@ -49,6 +50,12 @@ function Init() {
 	window.addEventListener('resize', (e) => OnWindowResize(gl));
 	document.addEventListener('mousedown', (e) => OnMouseDown(e, gl));
 	document.addEventListener('mousemove', (e) => OnMouseMove(e, gl));
+
+	InitUI('uiparent');
+
+	CreateMenu();
+
+	PauseGame(true);
 
 	OnWindowResize(gl);
 
@@ -181,6 +188,10 @@ function handleMovement(deltaTime) {
 }
 
 function OnMouseMove(e, gl) {
+	if (gamePaused) {
+		return;
+	}
+
 	if (!LockCameraMouseRotation) {
 		camera.gameobjectTransform.rotateX(-e.movementY * MouseSensitivity);
 		camera.gameobjectTransform.rotateY(-e.movementX * MouseSensitivity);
@@ -208,6 +219,9 @@ function OnMouseMove(e, gl) {
 }
 
 function OnMouseDown(gl, e) {
+	if (gamePaused) {
+		return;
+	}
 	return;
 
 	console.log(getNoPaddingNoBorderCanvasRelativeMousePosition(gl, e));
@@ -222,6 +236,10 @@ function OnMouseDown(gl, e) {
 }
 
 function handleKeyInput(keyCode, pressed, canvas) {
+	if (gamePaused) {
+		return;
+	}
+
 	switch (keyCode) {
 		case 'KeyW':
 			pressedKeys.Forward = pressed;
@@ -331,4 +349,18 @@ function getNoPaddingNoBorderCanvasRelativeMousePosition(gl, event, target) {
 	// pos.y = pos.y * target.height / target.clientHeight;
 
 	return pos;
+}
+
+function PauseGame(paused) {
+	gamePaused = paused;
+	ShowUI(gamePaused);
+}
+
+function CreateMenu() {
+	var mainPanel = CreatePanel(null, [80, 80], '#8e8e8eAA', 'column');
+	var redPanel = CreatePanel(mainPanel, [100, 50], 'red', 'column');
+	CreatePanel(mainPanel, [30, 50], 'blue');
+
+	CreateLabel(redPanel, [100, 10], "Hello", 2, 'white', 'green');
+	CreateButton(redPanel, [10, 10], "Click Me", (e) => { console.log("Button!") });
 }
