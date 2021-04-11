@@ -117,6 +117,15 @@ Transform.prototype.translate = function (pos) {
     this.position = vec3.clone(pos);
 }
 
+Transform.prototype.calculateMoveTowardsDirection = function (targetPos) {
+
+    var targetDirection = [0, 0, 0];
+    vec3.subtract(targetDirection, targetPos, this.position);
+    vec3.normalize(targetDirection, targetDirection);
+
+    return targetDirection
+}
+
 Transform.prototype.rotate = function (rotation) {
     this.rotation = quat.clone(rotation);
 }
@@ -192,9 +201,9 @@ var GameObject = function (components) {
     }
 }
 
-GameObject.prototype.update = function () {
+GameObject.prototype.update = function (dt) {
     for (var i = 0; i < this.components.length; i++) {
-        this.components[i].update();
+        this.components[i].update(dt);
     }
 }
 
@@ -273,7 +282,7 @@ MeshRenderer.prototype.init = function (gameobject) {
     this.gameobjectTransform = gameobject.transform;
 }
 
-MeshRenderer.prototype.update = function () {
+MeshRenderer.prototype.update = function (dt) {
     var gl = this.gl;
 
     this.calculateMatrices();
@@ -354,7 +363,7 @@ Camera.prototype.init = function (gameobject) {
     this.gameobjectTransform = gameobject.transform;
 }
 
-Camera.prototype.update = function () {
+Camera.prototype.update = function (dt) {
     mat4.invert(this.viewMatrix, this.gameobjectTransform.getTransformation());
 }
 
@@ -594,7 +603,7 @@ BoxCollider.prototype.init = function (gameobject) {
     gl.bindBuffer(gl.ARRAY_BUFFER, null);
 }
 
-BoxCollider.prototype.update = function () {
+BoxCollider.prototype.update = function (dt) {
     var gl = this.gl;
 
     if (!this.debug) {

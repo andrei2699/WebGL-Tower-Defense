@@ -57,11 +57,12 @@ function CreateLabel(parent, size, text, fontSize, textColor, backgroundColor) {
     return label;
 }
 
-function CreateButton(parent, size, text, handler) {
+function CreateButton(parent, size, text, handler, margin) {
 
     var button = document.createElement('button');
     button.style.width = size[0] + '%';
     button.style.height = size[1] + '%';
+    button.style.margin = margin + 'px';
     button.innerHTML = text;
     button.onclick = handler;
 
