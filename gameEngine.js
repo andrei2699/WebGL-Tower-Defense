@@ -55,6 +55,31 @@ function isPowerOf2(value) {
     return (value & (value - 1)) == 0;
 }
 
+function CreateMeshDataFromJSONObj(jsonObj) {
+
+
+    const vertices = jsonObj.v;
+
+    const indices = jsonObj.fs;
+
+    for (let index = 0; index < indices.length; index++) {
+        indices[index]--;
+    }
+
+    const vertexNormals = jsonObj.vt;
+
+    const color = [1.0, 1.0, 1.0, 1.0];
+    const textureCoordinates = createArrayPattern(vertexNormals.length, [
+        0.0, 0.0,
+        1.0, 0.0,
+        1.0, 1.0,
+        0.0, 1.0,
+    ]);
+
+    console.log(jsonObj)
+    return new MeshData(vertices, indices, vertexNormals, textureCoordinates, createArrayPattern(vertices.length, color));
+}
+
 var Transform = function (position) {
     if (!position) {
         position = [0, 0, 0];
@@ -222,7 +247,6 @@ GameObject.prototype.getComponent = function (componentType) {
     return undefined;
 }
 
-
 var MeshData = function (vertices, indices, normals, uvCoords, vertexColors) {
     this.vertices = vertices;
     this.indices = indices;
@@ -233,7 +257,7 @@ var MeshData = function (vertices, indices, normals, uvCoords, vertexColors) {
 
 var MeshRenderer = function (gl, viewMatrix, projectionMatrix, meshData, material, drawType) {
     if (!drawType) {
-        drawType = gl.TRIANGLES
+        drawType = gl.TRIANGLES;
     }
     this.drawType = drawType;
     this.gl = gl;

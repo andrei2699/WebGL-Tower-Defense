@@ -29,13 +29,20 @@ const MoveForwardSpeed = 10;
 const RotateSpeed = 500;
 
 function Init() {
-	loadTextResource("/levels/level1.json", (_, res) => {
-		const map = JSON.parse(res);
-		LoadLevel(map);
+
+	loadTextResource("/models/Shape.json", (_, model) => {
+
+		var models = new Map();
+		models['cat'] = JSON.parse(model)[0];
+
+		loadTextResource("/levels/level1.json", (_, res) => {
+			const map = JSON.parse(res);
+			LoadLevel(map, models);
+		});
 	});
 }
 
-function LoadLevel(map) {
+function LoadLevel(map, models) {
 	const canvas = document.querySelector('#glcanvas');
 	const gl = canvas.getContext('webgl');
 
@@ -73,6 +80,7 @@ function LoadLevel(map) {
 	camera.gameobjectTransform.translate([0, 3, 2]);
 
 	var cubeMeshData = createBoxPrimitiveMeshData([1.0, 1.0, 0.0, 1.0]);
+	var catMeshData = CreateMeshDataFromJSONObj(models['cat']);
 
 	// var modelMeshRenderer = new MeshRenderer(gl, camera.viewMatrix, camera.projectionMatrix, cubeMeshData, new UnlitMaterial(gl, [1.0, 0.5, 1.0, 1.0]));//, vertices, indices, vertexNormals, textureCoordinates, []);
 	// var otherModelRenderer = new MeshRenderer(gl, camera.viewMatrix, camera.projectionMatrix, cubeMeshData, new LitTextureMaterial(gl, loadTexture(gl, `cubetexture.png`)));
@@ -125,8 +133,8 @@ function LoadLevel(map) {
 	}
 
 	simpleEnemy = new GameObject([
-		new MeshRenderer(gl, camera.viewMatrix, camera.projectionMatrix, cubeMeshData, new LitTextureMaterial(gl, loadTexture(gl, `cubetexture.png`))),
-		new SimpleEnemyComponent(1, waypoints)
+		new MeshRenderer(gl, camera.viewMatrix, camera.projectionMatrix, catMeshData, new LitTextureMaterial(gl, loadTexture(gl, `cubetexture.png`))),
+		new SimpleEnemyComponent(0, waypoints)
 	]);
 	simpleEnemy.transform.translate(startPoint);
 
