@@ -1,6 +1,3 @@
-// var gameobject;
-// var otherGameobject;
-
 var simpleEnemy;
 
 var camera;
@@ -79,7 +76,6 @@ function LoadLevel(map, models) {
 	// camera.gameobjectTransform.translate([-0.5, 2, 5]);
 	camera.gameobjectTransform.translate([0, 3, 2]);
 
-	var cubeMeshData = createBoxPrimitiveMeshData([1.0, 1.0, 0.0, 1.0]);
 	var catMeshData = CreateMeshDataFromJSONObj(models['cat']);
 
 	// var modelMeshRenderer = new MeshRenderer(gl, camera.viewMatrix, camera.projectionMatrix, cubeMeshData, new UnlitMaterial(gl, [1.0, 0.5, 1.0, 1.0]));//, vertices, indices, vertexNormals, textureCoordinates, []);
@@ -137,10 +133,9 @@ function LoadLevel(map, models) {
 		new SimpleEnemyComponent(0, waypoints)
 	]);
 	simpleEnemy.transform.translate(startPoint);
+	simpleEnemy.transform.rescale([0.5, 0.5, 0.5]);
 
 	gameObjects.push(simpleEnemy);
-
-	// camera.gameobjectTransform.rotateX(-Math.PI / 6);
 
 	canvas.requestPointerLock();
 
@@ -386,13 +381,15 @@ SimpleEnemyComponent.prototype.update = function (dt) {
 
 	var distance = vec3.distance(this.waypoints[this.currentWayPointIndex], this.gameobjectTransform.position);
 
-
 	if (distance < 0.1) {
 		this.currentWayPointIndex++;
 
 		if (this.currentWayPointIndex >= this.waypoints.length) {
 			return;
 		}
+		var targetDirection = this.gameobjectTransform.calculateMoveTowardsDirection(this.waypoints[this.currentWayPointIndex]);
+		var angle = Math.atan2(targetDirection[0], targetDirection[2]);
+		this.gameobjectTransform.setRotation([0, (angle * 180) / Math.PI, 0]);
 	}
 
 	var targetDirection = this.gameobjectTransform.calculateMoveTowardsDirection(this.waypoints[this.currentWayPointIndex]);

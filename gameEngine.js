@@ -66,15 +66,10 @@ function CreateMeshDataFromJSONObj(jsonObj) {
         indices[index]--;
     }
 
-    const vertexNormals = jsonObj.vt;
+    const vertexNormals = jsonObj.vn;
 
     const color = [1.0, 1.0, 1.0, 1.0];
-    const textureCoordinates = createArrayPattern(vertexNormals.length, [
-        0.0, 0.0,
-        1.0, 0.0,
-        1.0, 1.0,
-        0.0, 1.0,
-    ]);
+    const textureCoordinates = jsonObj.vt;
 
     console.log(jsonObj)
     return new MeshData(vertices, indices, vertexNormals, textureCoordinates, createArrayPattern(vertices.length, color));
@@ -143,7 +138,6 @@ Transform.prototype.translate = function (pos) {
 }
 
 Transform.prototype.calculateMoveTowardsDirection = function (targetPos) {
-
     var targetDirection = [0, 0, 0];
     vec3.subtract(targetDirection, targetPos, this.position);
     vec3.normalize(targetDirection, targetDirection);
@@ -177,6 +171,12 @@ Transform.prototype.rotateX = function (amount) {
     this._realign();
 }
 
+Transform.prototype.setRotation = function (rotation) {
+    this.eulerAngles = rotation;
+    quat.fromEuler(this.rotation, this.eulerAngles[0], this.eulerAngles[1], this.eulerAngles[2]);
+    this._realign();
+}
+
 Transform.prototype.rotateY = function (amount) {
     this.eulerAngles[1] += amount;
     quat.fromEuler(this.rotation, this.eulerAngles[0], this.eulerAngles[1], this.eulerAngles[2]);
@@ -191,11 +191,41 @@ Transform.prototype.rotateZ = function (amount) {
     this._realign();
 }
 
-Transform.prototype.rotate = function (rotation) {
+Transform.prototype.rotateEuler = function (rotation) {
     this.rotateX(rotation[0]);
     this.rotateY(rotation[1]);
     this.rotateZ(rotation[2]);
 }
+
+// Transform.prototype.lookAt = function (destination) {
+//     var forwardVector = [0, 0, 0];
+//     vec3.subtract(forwardVector, destination, this.position);
+//     vec3.normalize(forwardVector, forwardVector);
+
+//     var dot = vec3.dot([0, 0, 1], forwardVector);
+
+//     if (Math.abs(dot + 1.0) < 0.000001) {
+//         return quat.fromValues(0, 1, 0, Math.PI);;
+//     }
+
+//     if (Math.abs(dot - 1.0) < 0.000001) {
+//         return quat.create();
+//     }
+
+//     var angle = Math.acos(dot);
+//     var rotAxis = [0, 0, 0];
+//     vec3.cross(rotAxis, [0, 0, 1], forwardVector);
+//     vec3.normalize(rotAxis, rotAxis);
+
+//     return CreateFromAxisAngle(rotAxis, angle);
+// }
+
+// function CreateFromAxisAngle(axis, angle) {
+//     var halfAngle = angle * 0.5;
+//     var s = Math.sin(halfAngle);
+
+//     return quat.fromValues(axis[0] * s, axis[1] * s, axis[2] * s, Math.cos(halfAngle));
+// }
 
 Transform.prototype.getTransformation = function () {
     mat4.identity(this.modelMatrix);
