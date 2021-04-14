@@ -101,7 +101,7 @@ function LoadLevel(map, models) {
 	var startPoint = [0, 0, 0];
 	var waypoints = [];
 
-	var lightDirection = [1, 0, 1];
+	var lightDirection = [1, 1, 1];
 	vec3.normalize(lightDirection, lightDirection);
 
 	for (let i = 0; i < map.mapsize; i++) {

@@ -355,7 +355,6 @@ var MeshRenderer = function (gl, viewMatrix, projectionMatrix, meshData, materia
 
 MeshRenderer.prototype.init = function (gameobject) {
     this.normalMatrix = mat4.create();
-    this.mvMatrix = mat4.create();
     this.gameobjectTransform = gameobject.transform;
 }
 
@@ -363,7 +362,7 @@ MeshRenderer.prototype.update = function (dt) {
     var gl = this.gl;
 
     this.calculateMatrices();
-    this.material.apply(gl, this.mvMatrix, this.projectionMatrix, this.normalMatrix);
+    this.material.apply(gl, this.gameobjectTransform.getTransformation(), this.viewMatrix, this.projectionMatrix, this.normalMatrix);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vbo);
     this.material.applyAttribute(gl, 'vertexPositions', 3, gl.FLOAT, false, 0, 0);
@@ -392,10 +391,13 @@ MeshRenderer.prototype.update = function (dt) {
 }
 
 MeshRenderer.prototype.calculateMatrices = function () {
-    mat4.multiply(this.mvMatrix, this.viewMatrix, this.gameobjectTransform.getTransformation());
-
-    mat4.invert(this.normalMatrix, this.mvMatrix);
+    // mvMatrix
+    mat4.invert(this.normalMatrix, this.gameobjectTransform.getTransformation());
     mat4.transpose(this.normalMatrix, this.normalMatrix);
+    // mat4.multiply(this.normalMatrix, this.viewMatrix, this.gameobjectTransform.getTransformation());
+
+    // mat4.invert(this.normalMatrix, this.normalMatrix);
+    // mat4.transpose(this.normalMatrix, this.normalMatrix);
 }
 
 var Camera = function (fov, aspect, near, far) {
@@ -617,7 +619,6 @@ var Collider = function (gl, viewMatrix, projectionMatrix, scale) {
     this.gl = gl;
     this.viewMatrix = viewMatrix;
     this.projectionMatrix = projectionMatrix;
-    this.mvMatrix = mat4.create();
     this.colliderTransform = new Transform();
     this.scale = scale;
 }
@@ -627,7 +628,6 @@ var BoxCollider = function (gl, viewMatrix, projectionMatrix, scale) {
 }
 
 BoxCollider.prototype.init = function (gameobject) {
-    this.mvMatrix = mat4.create();
     this.gameobjectTransform = gameobject.transform;
 
     this.vertices = [
@@ -689,8 +689,7 @@ BoxCollider.prototype.update = function (dt) {
 
     this._updateCollider();
 
-    mat4.multiply(this.mvMatrix, this.viewMatrix, this.colliderTransform.getTransformation());
-    this.material.apply(gl, this.mvMatrix, this.projectionMatrix, undefined);
+    this.material.apply(gl, this.colliderTransform.getTransformation(), this.viewMatrix, this.projectionMatrix, undefined);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vbo);
     this.material.applyAttribute(gl, 'vertexPositions', 3, gl.FLOAT, false, 0, 0);
@@ -829,9 +828,10 @@ class Material {
         }
     }
 
-    apply(gl, viewModelMatrix, projectionMatrix, normalMatrix) {
+    apply(gl, modelMatrix, viewMatrix, projectionMatrix, normalMatrix) {
         this.shader.use(gl);
-        gl.uniformMatrix4fv(this.shader.uniformLocations.get('viewModelMatrix'), false, viewModelMatrix);
+        gl.uniformMatrix4fv(this.shader.uniformLocations.get('modelMatrix'), false, modelMatrix);
+        gl.uniformMatrix4fv(this.shader.uniformLocations.get('viewMatrix'), false, viewMatrix);
         if (normalMatrix) {
             gl.uniformMatrix4fv(this.shader.uniformLocations.get('normalMatrix'), false, normalMatrix);
         }
@@ -852,25 +852,26 @@ class LitTextureShader extends Shader {
             varying vec3 worldNormal;
             varying vec4 vColor;
             varying vec2 vUV;
-            varying vec3 vLightDirection;
 
-            uniform mat4 uViewModelMatrix;
+            uniform mat4 uModelMatrix;
+            uniform mat4 uViewMatrix;
             uniform mat4 uProjectionMatrix;
             uniform mat4 uNormalMatrix;
 
             void main() {
-                vColor = vec4(aColor, 1.0);
-                worldNormal = (uNormalMatrix * vec4(aNormal, 1)).xyz;
+                vColor = vec4(aColor, 1.0);                
+                worldNormal = normalize( (uNormalMatrix * vec4(aNormal, 0)).xyz);
                 vUV = aUV;
-
-                gl_Position =  uProjectionMatrix * uViewModelMatrix * vec4(aPosition, 1);
+                
+                gl_Position =  uProjectionMatrix * uViewMatrix * uModelMatrix * vec4(aPosition, 1);
             }
         `;
 
         const fsSource = `
             precision mediump float;
 
-            const float ambient = 0.1;
+            const vec3 ambientColor = vec3(0.5, 0.5, 0.5);
+            const vec3 lightColor = vec3(1.0, 1.0, 1.0);
 
             varying vec3 worldNormal;
             varying vec4 vColor;
@@ -880,22 +881,11 @@ class LitTextureShader extends Shader {
             uniform vec3 uLightDirection;
 
             void main() {
+                vec3 L = uLightDirection;
                 vec4 texel = texture2D(uTextureID, vUV);
-                float diffuse = max(0.0, dot(worldNormal, uLightDirection));
+                vec3 diffuseLight = max(0.0, dot(worldNormal, L)) * lightColor;
 
-                gl_FragColor = texel;
-
-              /*  
-                float vBrightness = ambient + diffuse;
-                texel.xyz *= vBrightness;
-
-                bool hasTexture = (texel.x + texel.y + texel.z) > 0.0;
-                if (hasTexture) {
-                    gl_FragColor = texel;
-                } else {
-                    gl_FragColor = vColor * vBrightness;
-                }
-                */
+                gl_FragColor = vec4(texel.xyz * (ambientColor +  diffuseLight), 1);
             }
         `;
 
@@ -906,7 +896,8 @@ class LitTextureShader extends Shader {
         this.attribLocations.set('vertexNormals', gl.getAttribLocation(this.shaderProgram, 'aNormal'));
         this.attribLocations.set('vertexColors', gl.getAttribLocation(this.shaderProgram, 'aColor'));
 
-        this.uniformLocations.set('viewModelMatrix', gl.getUniformLocation(this.shaderProgram, 'uViewModelMatrix'));
+        this.uniformLocations.set('viewMatrix', gl.getUniformLocation(this.shaderProgram, 'uViewMatrix'));
+        this.uniformLocations.set('modelMatrix', gl.getUniformLocation(this.shaderProgram, 'uModelMatrix'));
         this.uniformLocations.set('normalMatrix', gl.getUniformLocation(this.shaderProgram, 'uNormalMatrix'));
         this.uniformLocations.set('projectionMatrix', gl.getUniformLocation(this.shaderProgram, 'uProjectionMatrix'));
 
@@ -933,8 +924,8 @@ class LitTextureMaterial extends Material {
         this.lightDirection = lightDirection;
     }
 
-    apply(gl, viewModelMatrix, projectionMatrix, normalMatrix) {
-        super.apply(gl, viewModelMatrix, projectionMatrix, normalMatrix);
+    apply(gl, modelMatrix, viewMatrix, projectionMatrix, normalMatrix) {
+        super.apply(gl, modelMatrix, viewMatrix, projectionMatrix, normalMatrix);
         if (this.texture) {
             gl.activeTexture(gl.TEXTURE0);
             gl.bindTexture(gl.TEXTURE_2D, this.texture);
@@ -952,11 +943,13 @@ class UnlitShader extends Shader {
 
             attribute vec3 aPosition;
 
-            uniform mat4 uViewModelMatrix;
+            
+            uniform mat4 uViewMatrix;
+            uniform mat4 uModelMatrix;
             uniform mat4 uProjectionMatrix;
 
             void main() {
-                gl_Position = uProjectionMatrix * uViewModelMatrix * vec4(aPosition, 1);
+                gl_Position = uProjectionMatrix * uViewMatrix * uModelMatrix * vec4(aPosition, 1);
             }
         `;
 
@@ -974,7 +967,8 @@ class UnlitShader extends Shader {
 
         this.attribLocations.set('vertexPositions', gl.getAttribLocation(this.shaderProgram, 'aPosition'));
 
-        this.uniformLocations.set('viewModelMatrix', gl.getUniformLocation(this.shaderProgram, 'uViewModelMatrix'));
+        this.uniformLocations.set('viewMatrix', gl.getUniformLocation(this.shaderProgram, 'uViewMatrix'));
+        this.uniformLocations.set('modelMatrix', gl.getUniformLocation(this.shaderProgram, 'uModelMatrix'));
         this.uniformLocations.set('projectionMatrix', gl.getUniformLocation(this.shaderProgram, 'uProjectionMatrix'));
 
         this.uniformLocations.set('uTintColor', gl.getUniformLocation(this.shaderProgram, 'uTintColor'));
@@ -993,8 +987,8 @@ class UnlitMaterial extends Material {
         this.color = color;
     }
 
-    apply(gl, viewModelMatrix, projectionMatrix, normalMatrix) {
-        super.apply(gl, viewModelMatrix, projectionMatrix);
+    apply(gl, modelMatrix, viewMatrix, projectionMatrix, normalMatrix) {
+        super.apply(gl, modelMatrix, viewMatrix, projectionMatrix);
         gl.uniform4fv(this.shader.uniformLocations.get('uTintColor'), this.color);
     }
 }
