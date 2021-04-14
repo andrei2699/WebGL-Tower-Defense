@@ -27,7 +27,7 @@ const RotateSpeed = 500;
 
 function Init() {
 
-	loadTextResource("/models/Shape.json", (_, model) => {
+	loadTextResource("/models/SimpleRobot.json", (_, model) => {
 
 		var models = new Map();
 		models['cat'] = JSON.parse(model)[0];
@@ -76,8 +76,6 @@ function LoadLevel(map, models) {
 	// camera.gameobjectTransform.translate([-0.5, 2, 5]);
 	camera.gameobjectTransform.translate([0, 3, 2]);
 
-	var catMeshData = CreateMeshDataFromJSONObj(models['cat']);
-
 	// var modelMeshRenderer = new MeshRenderer(gl, camera.viewMatrix, camera.projectionMatrix, cubeMeshData, new UnlitMaterial(gl, [1.0, 0.5, 1.0, 1.0]));//, vertices, indices, vertexNormals, textureCoordinates, []);
 	// var otherModelRenderer = new MeshRenderer(gl, camera.viewMatrix, camera.projectionMatrix, cubeMeshData, new LitTextureMaterial(gl, loadTexture(gl, `cubetexture.png`)));
 
@@ -103,6 +101,9 @@ function LoadLevel(map, models) {
 	var startPoint = [0, 0, 0];
 	var waypoints = [];
 
+	var lightDirection = [1, 0, 1];
+	vec3.normalize(lightDirection, lightDirection);
+
 	for (let i = 0; i < map.mapsize; i++) {
 		const mapRow = map.map[i];
 		for (let j = 0; j < mapRow.length; j++) {
@@ -119,7 +120,7 @@ function LoadLevel(map, models) {
 			}
 			else {
 				waypoints.push([i * 2, 0.5, j * 2]);
-				p = new GameObject([new MeshRenderer(gl, camera.viewMatrix, camera.projectionMatrix, createPlanePrimitiveMeshData([1.0, 0.5, 0.7, 1.0]), new LitTextureMaterial(gl, loadTexture(gl, 'cubeTexture.png')))]);
+				p = new GameObject([new MeshRenderer(gl, camera.viewMatrix, camera.projectionMatrix, createPlanePrimitiveMeshData([1.0, 0.5, 0.7, 1.0]), new LitTextureMaterial(gl, loadTexture(gl, 'cubeTexture.png'), lightDirection))]);
 			}
 
 			p.transform.translate([i * 2, 0, j * 2]);
@@ -129,8 +130,9 @@ function LoadLevel(map, models) {
 	}
 
 	simpleEnemy = new GameObject([
-		new MeshRenderer(gl, camera.viewMatrix, camera.projectionMatrix, catMeshData, new LitTextureMaterial(gl, loadTexture(gl, `cubetexture.png`))),
-		new SimpleEnemyComponent(0, waypoints)
+		new MeshRenderer(gl, camera.viewMatrix, camera.projectionMatrix, CreateMeshDataFromJSONObj(models['cat']),
+			new LitTextureMaterial(gl, loadTexture(gl, `textures/MetalTexture.jpg`), lightDirection)),
+		new SimpleEnemyComponent(1, waypoints)
 	]);
 	simpleEnemy.transform.translate(startPoint);
 	simpleEnemy.transform.rescale([0.5, 0.5, 0.5]);

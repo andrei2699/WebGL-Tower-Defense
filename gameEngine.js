@@ -57,22 +57,45 @@ function isPowerOf2(value) {
 
 function CreateMeshDataFromJSONObj(jsonObj) {
 
+    const faceSerializerType = jsonObj.faceSerializer;
 
-    const vertices = jsonObj.v;
+    var vertices = [];
+    var indices = [];
+    var vertexNormals = [];
+    var textureCoordinates = [];
 
-    const indices = jsonObj.fs;
+    var currentVertexIndex = 0;
 
-    for (let index = 0; index < indices.length; index++) {
-        indices[index]--;
+    if (faceSerializerType == 'vitn') {
+
+        for (let i = 0; i < jsonObj.fs.length; i += 3) {
+            var vertexIndex = (jsonObj.fs[i] - 1) * 3;
+            var uvIndex = (jsonObj.fs[i + 1] - 1) * 2;
+            var normaIndex = (jsonObj.fs[i + 2] - 1) * 3;
+
+            indices.push(currentVertexIndex);
+            currentVertexIndex++;
+
+            vertices.push(jsonObj.v[vertexIndex]);
+            vertices.push(jsonObj.v[vertexIndex + 1]);
+            vertices.push(jsonObj.v[vertexIndex + 2]);
+
+            textureCoordinates.push(jsonObj.vt[uvIndex]);
+            textureCoordinates.push(1 - jsonObj.vt[uvIndex + 1]);
+
+            vertexNormals.push(jsonObj.vn[normaIndex]);
+            vertexNormals.push(jsonObj.vn[normaIndex + 1]);
+            vertexNormals.push(jsonObj.vn[normaIndex + 2]);
+        }
+
+    }
+    else {
+        throw "Not supported Face Serializer";
     }
 
-    const vertexNormals = jsonObj.vn;
+    var color = [1.0, 1.0, 1.0, 1.0];
 
-    const color = [1.0, 1.0, 1.0, 1.0];
-    const textureCoordinates = jsonObj.vt;
-
-    console.log(jsonObj)
-    return new MeshData(vertices, indices, vertexNormals, textureCoordinates, createArrayPattern(vertices.length, color));
+    return new MeshData(vertices, indices, vertexNormals, textureCoordinates, createArrayPattern(vertices.length / 3, color));
 }
 
 var Transform = function (position) {
@@ -819,7 +842,7 @@ class Material {
 class LitTextureShader extends Shader {
     constructor(gl) {
         const vsSource = `
-            precision mediump float;
+            precision mediump float;                   
 
             attribute vec3 aPosition;
             attribute vec2 aUV;
@@ -829,6 +852,7 @@ class LitTextureShader extends Shader {
             varying vec3 worldNormal;
             varying vec4 vColor;
             varying vec2 vUV;
+            varying vec3 vLightDirection;
 
             uniform mat4 uViewModelMatrix;
             uniform mat4 uProjectionMatrix;
@@ -839,26 +863,29 @@ class LitTextureShader extends Shader {
                 worldNormal = (uNormalMatrix * vec4(aNormal, 1)).xyz;
                 vUV = aUV;
 
-                gl_Position = uProjectionMatrix * uViewModelMatrix * vec4(aPosition, 1);
+                gl_Position =  uProjectionMatrix * uViewModelMatrix * vec4(aPosition, 1);
             }
         `;
 
         const fsSource = `
             precision mediump float;
 
-            const vec3 lightDirection = normalize(vec3(0, 1.0, 1.0));
             const float ambient = 0.1;
 
             varying vec3 worldNormal;
             varying vec4 vColor;
             varying vec2 vUV;
-            
+
             uniform sampler2D uTextureID;
+            uniform vec3 uLightDirection;
 
             void main() {
                 vec4 texel = texture2D(uTextureID, vUV);
-                float diffuse = max(0.0, dot(worldNormal, lightDirection));
-                
+                float diffuse = max(0.0, dot(worldNormal, uLightDirection));
+
+                gl_FragColor = texel;
+
+              /*  
                 float vBrightness = ambient + diffuse;
                 texel.xyz *= vBrightness;
 
@@ -868,6 +895,7 @@ class LitTextureShader extends Shader {
                 } else {
                     gl_FragColor = vColor * vBrightness;
                 }
+                */
             }
         `;
 
@@ -883,6 +911,7 @@ class LitTextureShader extends Shader {
         this.uniformLocations.set('projectionMatrix', gl.getUniformLocation(this.shaderProgram, 'uProjectionMatrix'));
 
         this.uniformLocations.set('textureID', gl.getUniformLocation(this.shaderProgram, 'uTextureID'));
+        this.uniformLocations.set('lightDirection', gl.getUniformLocation(this.shaderProgram, 'uLightDirection'));
     }
 }
 
@@ -890,12 +919,18 @@ class LitTextureMaterial extends Material {
 
     static unlitshader = null;
 
-    constructor(gl, texture) {
+    constructor(gl, texture, lightDirection) {
         if (!LitTextureMaterial.unlitshader) {
             LitTextureMaterial.unlitshader = new LitTextureShader(gl);
         }
         super(LitTextureMaterial.unlitshader);
         this.texture = texture;
+
+        if (!lightDirection) {
+            lightDirection = [0, 1, 0];
+        }
+
+        this.lightDirection = lightDirection;
     }
 
     apply(gl, viewModelMatrix, projectionMatrix, normalMatrix) {
@@ -905,6 +940,8 @@ class LitTextureMaterial extends Material {
             gl.bindTexture(gl.TEXTURE_2D, this.texture);
             gl.uniform1i(this.shader.uniformLocations.get('textureID'), 0);
         }
+
+        gl.uniform3fv(this.shader.uniformLocations.get('lightDirection'), this.lightDirection);
     }
 }
 
