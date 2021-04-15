@@ -24,6 +24,10 @@ var LockCameraMouseRotation = false;
 
 const MoveForwardSpeed = 10;
 const RotateSpeed = 500;
+const GridSize = 2.0;
+
+var selectedGameobject;
+var testGameobject;
 
 function Init() {
 
@@ -115,8 +119,15 @@ function LoadLevel(map, models) {
 			}
 
 			if (element == 0) {
+
+				var collider = new BoxCollider(gl, camera.viewMatrix, camera.projectionMatrix, [2, 0.1, 2]);
+				collider.debug = true;
+				colliders.push(collider);
+
 				p = new GameObject([new MeshRenderer(gl, camera.viewMatrix, camera.projectionMatrix,
-					createPlanePrimitiveMeshData([1.0, 0.5, 0.7, 1.0]), new UnlitMaterial(gl, [1.0, 0.5, 0.5, 1.0]))]);
+					createPlanePrimitiveMeshData([1.0, 0.5, 0.7, 1.0]), new UnlitMaterial(gl, [1.0, 0.5, 0.5, 1.0])),
+					collider
+				]);
 			}
 			else {
 				waypoints.push([i * 2, 0.5, j * 2]);
@@ -129,6 +140,12 @@ function LoadLevel(map, models) {
 		}
 	}
 
+	testGameobject = new GameObject([
+		new MeshRenderer(gl, camera.viewMatrix, camera.projectionMatrix, CreateMeshDataFromJSONObj(models['cat']),
+			new LitTextureMaterial(gl, loadTexture(gl, `textures/MetalTexture.jpg`), lightDirection))
+	]);
+	testGameobject.transform.rescale([0.5, 0.5, 0.5]);
+
 	simpleEnemy = new GameObject([
 		new MeshRenderer(gl, camera.viewMatrix, camera.projectionMatrix, CreateMeshDataFromJSONObj(models['cat']),
 			new LitTextureMaterial(gl, loadTexture(gl, `textures/MetalTexture.jpg`), lightDirection)),
@@ -138,6 +155,7 @@ function LoadLevel(map, models) {
 	simpleEnemy.transform.rescale([0.5, 0.5, 0.5]);
 
 	gameObjects.push(simpleEnemy);
+	gameObjects.push(testGameobject);
 
 	canvas.requestPointerLock();
 
@@ -200,31 +218,48 @@ function OnMouseMove(e, gl) {
 		camera.gameobjectTransform.rotateY(-e.movementX * MouseSensitivity);
 	}
 
-	// var pos = getNoPaddingNoBorderCanvasRelativeMousePosition(gl, e);
-	// var ray = camera.calculateClipSpacePositionInWorldSpace(pos.x, pos.y);
-	// var mouseWorldPos = ray.point;
+	if (selectedGameobject) {
 
-	// var dir = vec3.clone(ray.direction);
-	// var r = [0, 0, 0];
-	// var add = [0, 0, 0];
-	// vec3.scale(r, dir, 10);
-	// vec3.add(add, mouseWorldPos, r);
+		var pos = getNoPaddingNoBorderCanvasRelativeMousePosition(gl, e);
+		var ray = camera.calculateClipSpacePositionInWorldSpace(pos.x, pos.y);
+		var mouseWorldPos = ray.point;
 
-	// for (let i = 0; i < colliders.length; i++) {
+		var dir = vec3.clone(ray.direction);
+		var r = [0, 0, 0];
+		var add = [0, 0, 0];
+		vec3.scale(r, dir, 10);
+		vec3.add(add, mouseWorldPos, r);
 
-	// 	var collision = colliders[i].checkCollision(ray);
-	// 	if (collision) {
-	// 		otherGameobject.transform.translate(collision);
-	// 		// console.log(collision);
-	// 	}
-	// }
+		for (let i = 0; i < colliders.length; i++) {
 
+			var collision = colliders[i].checkCollision(ray);
+
+			if (collision) {
+				selectedGameobject.transform.translate(snapToGrid(collision));
+			}
+		}
+	}
+}
+
+function snapToGrid(position) {
+	return [
+		parseInt(position[0] / GridSize + GridSize / 4) * GridSize,
+		position[1],
+		parseInt(position[2] / GridSize + GridSize / 4) * GridSize];
 }
 
 function OnMouseDown(gl, e) {
 	if (gamePaused) {
 		return;
 	}
+
+
+	if (selectedGameobject) {
+		selectedGameobject = undefined;
+	} else {
+		selectedGameobject = testGameobject;
+	}
+
 	return;
 
 	console.log(getNoPaddingNoBorderCanvasRelativeMousePosition(gl, e));
