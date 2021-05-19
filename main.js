@@ -31,10 +31,11 @@ var testGameobject;
 
 function Init() {
 
-	loadTextResource("/models/SimpleRobot.json", (_, model) => {
+	loadTextResource("/models/enemy.json", (_, model) => {
 
 		var models = new Map();
-		models['cat'] = JSON.parse(model)[0];
+		models['turretBase'] = JSON.parse(model)[0];
+		// models['turretWeapon'] = JSON.parse(model)[1];
 
 		loadTextResource("/levels/level1.json", (_, res) => {
 			const map = JSON.parse(res);
@@ -141,14 +142,14 @@ function LoadLevel(map, models) {
 	}
 
 	testGameobject = new GameObject([
-		new MeshRenderer(gl, camera.viewMatrix, camera.projectionMatrix, CreateMeshDataFromJSONObj(models['cat']),
+		new MeshRenderer(gl, camera.viewMatrix, camera.projectionMatrix, CreateMeshDataFromJSONObj(models['turretBase']),
 			new LitTextureMaterial(gl, loadTexture(gl, `textures/MetalTexture.jpg`), lightDirection))
 	]);
 	testGameobject.transform.rescale([0.5, 0.5, 0.5]);
 
 	simpleEnemy = new GameObject([
-		new MeshRenderer(gl, camera.viewMatrix, camera.projectionMatrix, CreateMeshDataFromJSONObj(models['cat']),
-			new LitTextureMaterial(gl, loadTexture(gl, `textures/MetalTexture.jpg`), lightDirection)),
+		new MeshRenderer(gl, camera.viewMatrix, camera.projectionMatrix, CreateMeshDataFromJSONObj(models['turretBase']),
+			new LitTextureMaterial(gl, loadTexture(gl, `textures/Stone.jpg`), lightDirection)),
 		new SimpleEnemyComponent(1, waypoints)
 	]);
 	simpleEnemy.transform.translate(startPoint);
